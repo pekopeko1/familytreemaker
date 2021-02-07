@@ -275,14 +275,14 @@ class Family:
 			for i in range(0, int(l/2)):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s -> h%d -> %s;' % (spouse.id, h.id, p.id))
+				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (spouse.id, h.id, p.id))
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 
 			# Display those on the right (at least one)
 			for i in range(int(l/2), l):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s -> h%d -> %s;' % (p.id, h.id, spouse.id))
+				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (p.id, h.id, spouse.id))
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 				prev = spouse.id
 		print('\t}')
