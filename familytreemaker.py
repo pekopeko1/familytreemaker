@@ -328,8 +328,9 @@ class Family:
 		gen = [ancestor]
 
 		print('digraph {\n' + \
-		      '\tnode [shape=box];\n' + \
-		      '\tedge [dir=none];\n')
+		      '\tgraph [fontname = "Meiryo UI"];\n' + \
+		      '\tnode [fontname = "Meiryo UI", shape=box];\n' + \
+		      '\tedge [fontname = "Meiryo UI", dir=none];\n')
 
 		for p in self.everybody.values():
 			print('\t' + p.graphviz() + ';')
