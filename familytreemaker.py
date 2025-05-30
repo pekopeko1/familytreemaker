@@ -131,10 +131,10 @@ class Family:
 
 	"""
 
-	everybody = {}
-	households = []
-
-	invisible = '[shape=circle,label="",height=0.01,width=0.01]';
+	def __init__(self):
+		self.everybody = {}
+		self.households = []
+		self.invisible = '[shape=circle,label="",height=0.01,width=0.01]';
 
 	def add_person(self, string):
 		"""Adds a person to self.everybody, or update his/her info if this
@@ -157,8 +157,7 @@ class Family:
 
 		"""
 		if len(h.parents) != 2:
-			print('error: number of parents != 2')
-			return
+			raise ValueError(f"Household must have exactly 2 parents, got {len(h.parents)}")
 
 		h.id = len(self.households)
 		self.households.append(h)
@@ -217,9 +216,14 @@ class Family:
 		would be to return the one with the highest number of descendant.
 		
 		"""
+		if not self.everybody:
+			raise ValueError("Cannot find an ancestor in an empty family.")
+
 		for p in self.everybody.values():
 			if len(p.parents) == 0:
 				return p
+
+		raise ValueError("No ancestor found; all persons have parents.")
 
 	def next_generation(self, gen):
 		"""Takes the generation N in argument, returns the generation N+1.
@@ -238,6 +242,7 @@ class Family:
 
 		return next_gen
 
+	@staticmethod
 	def get_spouse(household, person):
 		"""Returns the spouse or husband of a person in a union.
 
@@ -245,13 +250,9 @@ class Family:
 		return	household.parents[0] == person \
 				and household.parents[1] or household.parents[0]
 
-	def display_generation(self, gen):
-		"""Outputs an entire generation in DOT format.
-
-		"""
-		# Display persons
+	def _display_persons_and_spouses(self, gen):
+		"""Displays persons and their spouses/husbands for a generation."""
 		print('\t{ rank=same;')
-
 		prev = None
 		for p in gen:
 			l = len(p.households)
@@ -276,18 +277,19 @@ class Family:
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
 				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (spouse.id, h.id, p.id))
-				print('\t\th%d%s;' % (h.id, Family.invisible))
+				print('\t\th%d%s;' % (h.id, self.invisible))
 
 			# Display those on the right (at least one)
 			for i in range(int(l/2), l):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
 				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (p.id, h.id, spouse.id))
-				print('\t\th%d%s;' % (h.id, Family.invisible))
+				print('\t\th%d%s;' % (h.id, self.invisible))
 				prev = spouse.id
 		print('\t}')
 
-		# Display lines below households
+	def _display_household_connection_placeholders(self, gen):
+		"""Displays invisible nodes and lines below households for visual structure."""
 		print('\t{ rank=same;')
 		prev = None
 		for p in gen:
@@ -296,16 +298,18 @@ class Family:
 					continue
 				if prev:
 					print('\t\t%s -> h%d_0 [style=invis];' % (prev, h.id))
-				l = len(h.kids)
-				if l % 2 == 0:
+				l_kids = len(h.kids)
+				if l_kids % 2 == 0:
 					# We need to add a node to keep symmetry
-					l += 1
-				print('\t\t' + ' -> '.join(map(lambda x: 'h%d_%d' % (h.id, x), range(l))) + ';')
-				for i in range(l):
-					print('\t\th%d_%d%s;' % (h.id, i, Family.invisible))
+					l_kids += 1
+				print('\t\t' + ' -> '.join(map(lambda x: 'h%d_%d' % (h.id, x), range(l_kids))) + ';')
+				for i in range(l_kids):
+					print('\t\th%d_%d%s;' % (h.id, i, self.invisible))
 					prev = 'h%d_%d' % (h.id, i)
 		print('\t}')
 
+	def _connect_households_to_children(self, gen):
+		"""Connects households to their children with visible lines."""
 		for p in gen:
 			for h in p.households:
 				if len(h.kids) > 0:
@@ -316,8 +320,17 @@ class Family:
 						print('\t\th%d_%d -> %s;'
 						      % (h.id, i, c.id))
 						i += 1
-						if i == len(h.kids)/2:
-							i += 1
+						# Skip the center placeholder if we added one for symmetry
+						if len(h.kids) % 2 == 0 and i == len(h.kids)/2 :
+							i +=1
+
+	def display_generation(self, gen):
+		"""Outputs an entire generation in DOT format.
+
+		"""
+		self._display_persons_and_spouses(gen)
+		self._display_household_connection_placeholders(gen)
+		self._connect_households_to_children(gen)
 
 	def output_descending_tree(self, ancestor):
 		"""Outputs the whole descending family tree from a given ancestor,
