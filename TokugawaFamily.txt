@@ -1,0 +1,9 @@
+徳川家康 (M, birthday=1543-01-31, deathday=1616-06-01)
+築山殿 (F, deathday=1579-09-19)
+	徳川信康 (M, birthday=1559-04-13, deathday=1579-10-05)
+	亀姫 (F, birthday=1560, deathday=1625)
+
+徳川家康
+西郷局 (F, birthday=1552, deathday=1589-07-01)
+	徳川秀忠 (M, birthday=1579-05-02, deathday=1632-03-14)
+	松平忠吉 (M, birthday=1580-10-18, deathday=1607-04-01)

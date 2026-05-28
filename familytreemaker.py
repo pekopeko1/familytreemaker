@@ -67,11 +67,12 @@ class Person:
 			self.name = desc
 
 		if 'id' in self.attr:
-			  self.id = self.attr['id']
+			self.id = self.attr['id']
 		else:
 			self.id = re.sub('[^0-9A-Za-z]', '', self.name)
-			if 'unique' in self.attr:
-				  self.id += str(random.randint(100, 999))
+			if self.id == '' or 'unique' in self.attr:
+				import hashlib
+				self.id = 'P' + hashlib.md5(self.name.encode('utf-8')).hexdigest()
 
 		self.follow_kids = True
 
@@ -328,9 +329,9 @@ class Family:
 		gen = [ancestor]
 
 		print('digraph {\n' + \
-		      '\tgraph [fontname = "Meiryo UI"];\n' + \
-		      '\tnode [fontname = "Meiryo UI", shape=box];\n' + \
-		      '\tedge [fontname = "Meiryo UI", dir=none];\n')
+		      '\tgraph [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
+		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box];\n' + \
+		      '\tedge [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", dir=none];\n')
 
 		for p in self.everybody.values():
 			print('\t' + p.graphviz() + ';')
