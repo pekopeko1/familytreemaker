@@ -1,9 +1,38 @@
-徳川家康 (M, birthday=1543-01-31, deathday=1616-06-01)
-築山殿 (F, deathday=1579-09-19)
-	徳川信康 (M, birthday=1559-04-13, deathday=1579-10-05)
-	亀姫 (F, birthday=1560, deathday=1625)
+# 徳川家康の家系 (徳川家康から徳川家光まで)
+# 注意: familytreemaker.py の制限により、1人につき配偶者は2人までしか描画できません。
+# そのため、主要な血統（秀忠の系統）を中心に構成しています。
+
+徳川家康 (M, birthday=1543, deathday=1616)
+於愛の方 (F, birthday=1552, deathday=1589)
+	徳川秀忠 (id=Hidetada, M, birthday=1579, deathday=1632)
+	松平忠吉 (M, birthday=1580, deathday=1607)
 
 徳川家康
-西郷局 (F, birthday=1552, deathday=1589-07-01)
-	徳川秀忠 (M, birthday=1579-05-02, deathday=1632-03-14)
-	松平忠吉 (M, birthday=1580-10-18, deathday=1607-04-01)
+築山殿 (F, deathday=1579)
+	松平信康 (M, birthday=1559, deathday=1579)
+	亀姫 (F, birthday=1560, deathday=1625)
+
+# 他の子女（代表的なもの）
+# 制限のため、家康の直下ではなく独立したエントリとして記載するか、
+# または主要な2人に絞る必要があります。ここでは秀忠の代を充実させます。
+
+# ---------------------------------------------------------
+# 第二代将軍 徳川秀忠の代
+
+徳川秀忠 (id=Hidetada)
+崇源院 (F, birthday=1573, deathday=1626)
+	千姫 (F, birthday=1597, deathday=1666)
+	珠姫 (F, birthday=1599, deathday=1622)
+	勝姫 (F, birthday=1601, deathday=1672)
+	初姫 (F, birthday=1602, deathday=1630)
+	徳川家光 (M, birthday=1604, deathday=1651)
+	徳川忠長 (M, birthday=1606, deathday=1634)
+	和子 (F, birthday=1607, deathday=1678)
+
+徳川秀忠 (id=Hidetada)
+静 (F, birthday=1584, deathday=1635)
+	保科正之 (M, birthday=1611, deathday=1673)
+
+# ---------------------------------------------------------
+# 第三代将軍 徳川家光の代
+徳川家光 (M, birthday=1604, deathday=1651)
