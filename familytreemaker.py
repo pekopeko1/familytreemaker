@@ -37,8 +37,8 @@ import sys
 class LayoutRuleEnforcer:
 	"""Helper to enforce and verify layout rules for DOT output.
 	Rules:
-	- Spouse connections: Horizontal (East to West)
-	- Child connections: Vertical (South to North)
+	- Spouse connections: Horizontal (East to West, vertical center)
+	- Child connections: Vertical (South to North, horizontal center)
 	- Sibling bars: Horizontal (East to West)
 	"""
 	def __init__(self):
@@ -51,6 +51,7 @@ class LayoutRuleEnforcer:
 		
 		if edge_type == 'spouse':
 			# Spouse connections: horizontal from node center-east to next node center-west
+			# Use explicit port for non-invisible nodes to ensure center-point alignment
 			if ':' not in s and not s.startswith('h'): s += ':e'
 			if ':' not in d and not d.startswith('h'): d += ':w'
 		elif edge_type == 'vertical':
@@ -173,7 +174,8 @@ class Family:
 	households = []
 	layout_enforcer = LayoutRuleEnforcer()
 
-	invisible = '[shape=circle,label="",height=0.01,width=0.01]';
+	# Use fixed size for invisible nodes to improve ortho-line stability
+	invisible = '[shape=circle,label="",height=0.01,width=0.01,fixedsize=true]';
 
 	def add_person(self, string):
 		"""Adds a person to self.everybody, or update his/her info if this
@@ -306,6 +308,7 @@ class Family:
 				if l <= 1:
 					print('\t\t%s -> %s [style=invis];' % (prev, p.id))
 				else:
+					# Ensure the invisible edge is to the first spouse found for consistent ranking
 					print('\t\t%s -> %s [style=invis];'
 						  % (prev, Family.get_spouse(p.households[0], p).id))
 
@@ -361,9 +364,11 @@ class Family:
 		for p in gen:
 			for h in p.households:
 				if len(h.kids) > 0:
+					# Parent household junction to sibling bar
 					print_edge('h%d' % h.id, 'h%d_%d' % (h.id, int(len(h.kids)/2)), 'vertical')
 					i = 0
 					for c in h.kids:
+						# sibling bar junction to child node
 						print_edge('h%d_%d' % (h.id, i), c.id, 'vertical')
 						i += 1
 						if i == len(h.kids)/2:
@@ -377,9 +382,10 @@ class Family:
 		# Find the first households
 		gen = [ancestor]
 
+		# Adjusting ranksep and nodesep for better stability in ortho mode
 		print('digraph {\n' + \
-		      '\tgraph [splines=ortho, nodesep=1.0, ranksep=0.8, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
-		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box];\n' + \
+		      '\tgraph [splines=ortho, nodesep=1.0, ranksep=1.0, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
+		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box, height=0.5, width=1.5];\n' + \
 		      '\tedge [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", dir=none];\n')
 
 		for p in self.everybody.values():
