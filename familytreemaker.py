@@ -34,6 +34,43 @@ import random
 import re
 import sys
 
+class LayoutRuleEnforcer:
+	"""Helper to enforce and verify layout rules for DOT output.
+	Rules:
+	- Spouse connections: Horizontal (East to West)
+	- Child connections: Vertical (South to North)
+	- Sibling bars: Horizontal (East to West)
+	"""
+	def __init__(self):
+		self.total_edges = 0
+		self.enforced_ports = 0
+
+	def enforce(self, src, dst, edge_type):
+		self.total_edges += 1
+		s, d = src, dst
+		
+		if edge_type == 'spouse':
+			# Spouse connections: horizontal from node center-east to next node center-west
+			if ':' not in s and not s.startswith('h'): s += ':e'
+			if ':' not in d and not d.startswith('h'): d += ':w'
+		elif edge_type == 'vertical':
+			# Vertical connections: from bottom center to top center
+			if ':' not in s: s += ':s'
+			if ':' not in d: d += ':n'
+		elif edge_type == 'horizontal':
+			# Horizontal bar connections: east to west
+			if ':' not in s: s += ':e'
+			if ':' not in d: d += ':w'
+		
+		if s != src or d != dst:
+			self.enforced_ports += 1
+		
+		return s, d
+
+	def get_report(self):
+		return "// Layout rules enforced: %d edges processed, %d ports corrected for alignment." % \
+			(self.total_edges, self.enforced_ports)
+
 class Person:
 	"""This class represents a person.
 
@@ -134,6 +171,7 @@ class Family:
 
 	everybody = {}
 	households = []
+	layout_enforcer = LayoutRuleEnforcer()
 
 	invisible = '[shape=circle,label="",height=0.01,width=0.01]';
 
@@ -250,6 +288,13 @@ class Family:
 		"""Outputs an entire generation in DOT format.
 
 		"""
+		enforcer = Family.layout_enforcer
+
+		def print_edge(src, dst, etype, opts=None):
+			if opts is None: opts = []
+			s, d = enforcer.enforce(src, dst, etype)
+			print('\t\t%s -> %s [%s];' % (s, d, ','.join(opts)))
+
 		# Display persons
 		print('\t{ rank=same;')
 
@@ -276,14 +321,16 @@ class Family:
 			for i in range(0, int(l/2)):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s:e -> h%d -> %s:w [color = "black:white:black" ];' % (spouse.id, h.id, p.id))
+				print_edge(spouse.id, 'h%d' % h.id, 'spouse', ['color="black:white:black"'])
+				print_edge('h%d' % h.id, p.id, 'spouse', ['color="black:white:black"'])
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 
 			# Display those on the right (at least one)
 			for i in range(int(l/2), l):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s:e -> h%d -> %s:w [color = "black:white:black" ];' % (p.id, h.id, spouse.id))
+				print_edge(p.id, 'h%d' % h.id, 'spouse', ['color="black:white:black"'])
+				print_edge('h%d' % h.id, spouse.id, 'spouse', ['color="black:white:black"'])
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 				prev = spouse.id
 		print('\t}')
@@ -301,7 +348,11 @@ class Family:
 				if l % 2 == 0:
 					# We need to add a node to keep symmetry
 					l += 1
-				print('\t\t' + ' -> '.join(map(lambda x: 'h%d_%d' % (h.id, x), range(l))) + ';')
+				
+				# Enforce horizontal line for siblings
+				for i in range(l - 1):
+					print_edge('h%d_%d' % (h.id, i), 'h%d_%d' % (h.id, i+1), 'horizontal')
+
 				for i in range(l):
 					print('\t\th%d_%d%s;' % (h.id, i, Family.invisible))
 					prev = 'h%d_%d' % (h.id, i)
@@ -310,12 +361,10 @@ class Family:
 		for p in gen:
 			for h in p.households:
 				if len(h.kids) > 0:
-					print('\t\th%d:s -> h%d_%d:n;'
-					      % (h.id, h.id, int(len(h.kids)/2)))
+					print_edge('h%d' % h.id, 'h%d_%d' % (h.id, int(len(h.kids)/2)), 'vertical')
 					i = 0
 					for c in h.kids:
-						print('\t\th%d_%d:s -> %s:n;'
-						      % (h.id, i, c.id))
+						print_edge('h%d_%d' % (h.id, i), c.id, 'vertical')
 						i += 1
 						if i == len(h.kids)/2:
 							i += 1
@@ -329,7 +378,7 @@ class Family:
 		gen = [ancestor]
 
 		print('digraph {\n' + \
-		      '\tgraph [splines=ortho, nodesep=0.8, ranksep=0.5, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
+		      '\tgraph [splines=ortho, nodesep=1.0, ranksep=0.8, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
 		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box];\n' + \
 		      '\tedge [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", dir=none];\n')
 
@@ -341,6 +390,7 @@ class Family:
 			self.display_generation(gen)
 			gen = self.next_generation(gen)
 
+		print(Family.layout_enforcer.get_report())
 		print('}')
 
 def main():
