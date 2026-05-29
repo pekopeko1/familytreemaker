@@ -276,14 +276,14 @@ class Family:
 			for i in range(0, int(l/2)):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (spouse.id, h.id, p.id))
+				print('\t\t%s:e -> h%d -> %s:w [color = "black:white:black" ];' % (spouse.id, h.id, p.id))
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 
 			# Display those on the right (at least one)
 			for i in range(int(l/2), l):
 				h = p.households[i]
 				spouse = Family.get_spouse(h, p)
-				print('\t\t%s -> h%d -> %s [color = "black:white:black" ];' % (p.id, h.id, spouse.id))
+				print('\t\t%s:e -> h%d -> %s:w [color = "black:white:black" ];' % (p.id, h.id, spouse.id))
 				print('\t\th%d%s;' % (h.id, Family.invisible))
 				prev = spouse.id
 		print('\t}')
@@ -310,11 +310,11 @@ class Family:
 		for p in gen:
 			for h in p.households:
 				if len(h.kids) > 0:
-					print('\t\th%d -> h%d_%d;'
+					print('\t\th%d:s -> h%d_%d:n;'
 					      % (h.id, h.id, int(len(h.kids)/2)))
 					i = 0
 					for c in h.kids:
-						print('\t\th%d_%d -> %s;'
+						print('\t\th%d_%d:s -> %s:n;'
 						      % (h.id, i, c.id))
 						i += 1
 						if i == len(h.kids)/2:
@@ -329,7 +329,7 @@ class Family:
 		gen = [ancestor]
 
 		print('digraph {\n' + \
-		      '\tgraph [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
+		      '\tgraph [splines=ortho, nodesep=0.8, ranksep=0.5, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
 		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box];\n' + \
 		      '\tedge [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", dir=none];\n')
 
