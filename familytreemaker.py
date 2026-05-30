@@ -10,7 +10,7 @@ This program creates family tree graphs from simple text files.
 __author__ = "Adrien Vergé"
 __copyright__ = "Copyright 2013, Adrien Vergé"
 __license__ = "GPL"
-__version__ = "1.1"
+__version__ = "1.2"
 
 import argparse
 import random
@@ -20,8 +20,8 @@ import sys
 class LayoutRuleEnforcer:
 	"""Helper to enforce and verify layout rules for DOT output.
 	Rules:
-	- Spouse connections: Horizontal (East to West)
-	- Child connections: Vertical (South to North)
+	- Spouse connections: Horizontal (East to West, vertical center)
+	- Child connections: Vertical (South to North, horizontal center)
 	- Sibling bars: Horizontal (East to West)
 	"""
 	def __init__(self):
@@ -32,15 +32,17 @@ class LayoutRuleEnforcer:
 		self.total_edges += 1
 		s, d = src, dst
 		
+		# For invisible nodes (starts with h), we avoid ports to let Graphviz
+		# connect to their center naturally, preventing zig-zags.
 		if edge_type == 'spouse':
 			if ':' not in s and not s.startswith('h'): s += ':e'
 			if ':' not in d and not d.startswith('h'): d += ':w'
 		elif edge_type == 'vertical':
-			if ':' not in s: s += ':s'
-			if ':' not in d: d += ':n'
+			if ':' not in s and not s.startswith('h'): s += ':s'
+			if ':' not in d and not d.startswith('h'): d += ':n'
 		elif edge_type == 'horizontal':
-			if ':' not in s: s += ':e'
-			if ':' not in d: d += ':w'
+			if ':' not in s and not s.startswith('h'): s += ':e'
+			if ':' not in d and not d.startswith('h'): d += ':w'
 		
 		if s != src or d != dst:
 			self.enforced_ports += 1
@@ -80,7 +82,7 @@ class Person:
 				self.id = 'P' + hashlib.md5(self.name.encode('utf-8')).hexdigest()
 
 		self.follow_kids = True
-		self.group = None # Group for vertical alignment
+		self.group = None 
 
 	def __str__(self):
 		return self.name
@@ -102,7 +104,7 @@ class Person:
 		opts.append('fillcolor=' + ('F' in self.attr and 'bisque' or
 					('M' in self.attr and 'azure2' or 'white')))
 		if self.group:
-			opts.append('group=' + str(self.group))
+			opts.append('group="' + str(self.group) + '"')
 		return self.id + '[' + ','.join(opts) + ']'
 
 class Household:
@@ -118,7 +120,8 @@ class Family:
 	everybody = {}
 	households = []
 	layout_enforcer = LayoutRuleEnforcer()
-	invisible = '[shape=circle,label="",height=0.01,width=0.01,fixedsize=true]';
+	# Larger height for invisible nodes to help align with box centers
+	invisible = '[shape=circle,label="",height=0.1,width=0.1,fixedsize=true]';
 
 	def add_person(self, string):
 		p = Person(string)
@@ -193,19 +196,11 @@ class Family:
 			s, d = enforcer.enforce(src, dst, etype)
 			print('\t\t%s -> %s [%s];' % (s, d, ','.join(opts)))
 
-		# Assign vertical groups to middle children to force vertical lines
-		for p in gen:
-			for h in p.households:
-				if len(h.kids) > 0:
-					middle_idx = int(len(h.kids)/2)
-					h.kids[middle_idx].group = h.id
-
 		print('\t{ rank=same;')
 		prev = None
 		for p in gen:
 			l = len(p.households)
 			if prev:
-				# Use weight to keep horizontal alignment tight
 				target = p.id if l == 0 else Family.get_spouse(p.households[0], p).id
 				print('\t\t%s -> %s [style=invis, weight=10];' % (prev, target))
 
@@ -213,19 +208,18 @@ class Family:
 				prev = p.id
 				continue
 			
-			for i in range(0, int(l/2)):
-				h = p.households[i]
+			for h in p.households:
 				spouse = Family.get_spouse(h, p)
-				print_edge(spouse.id, 'h%d' % h.id, 'spouse', ['color="black:white:black"'])
-				print_edge('h%d' % h.id, p.id, 'spouse', ['color="black:white:black"'])
-				print('\t\th%d%s;' % (h.id, Family.invisible))
-			for i in range(int(l/2), l):
-				h = p.households[i]
-				spouse = Family.get_spouse(h, p)
-				print_edge(p.id, 'h%d' % h.id, 'spouse', ['color="black:white:black"'])
-				print_edge('h%d' % h.id, spouse.id, 'spouse', ['color="black:white:black"'])
-				print('\t\th%d%s;' % (h.id, Family.invisible))
-				prev = spouse.id
+				# Use a group for household node and middle child
+				h_group = "grp_h%d" % h.id
+				
+				# Identify the person on the left to keep order
+				left, right = (p, spouse) if p.id < spouse.id else (spouse, p)
+				
+				print_edge(left.id, 'h%d' % h.id, 'spouse', ['color="black:white:black"'])
+				print_edge('h%d' % h.id, right.id, 'spouse', ['color="black:white:black"'])
+				print('\t\th%d[%s, group="%s"];' % (h.id, Family.invisible[1:-1], h_group))
+				prev = right.id
 		print('\t}')
 
 		print('\t{ rank=same;')
@@ -237,37 +231,86 @@ class Family:
 					print('\t\t%s -> h%d_0 [style=invis, weight=10];' % (prev, h.id))
 				l = len(h.kids)
 				if l % 2 == 0: l += 1
+				
+				h_group = "grp_h%d" % h.id
+				middle_idx = int(l/2)
+
 				for i in range(l - 1):
 					print_edge('h%d_%d' % (h.id, i), 'h%d_%d' % (h.id, i+1), 'horizontal')
+				
 				for i in range(l):
-					print('\t\th%d_%d%s;' % (h.id, i, Family.invisible))
+					# Each junction node that has a child gets a unique group with that child
+					# Except the middle one which might be grouped with the household node
+					c_group = "grp_h%d_c%d" % (h.id, i)
+					# Adjust: the middle junction node MUST be in the household group
+					node_group = h_group if i == middle_idx else c_group
+					
+					print('\t\th%d_%d[%s, group="%s"];' % (h.id, i, Family.invisible[1:-1], node_group))
+					
+					# Assign group to children (if child exists for this junction)
+					# Note: kids are at 0, 1, ..., middle-1, middle+1, ...
+					# Actually, in display_generation logic, we skip the middle one if l was even? 
+					# No, let's keep it simple.
 					prev = 'h%d_%d' % (h.id, i)
 		print('\t}')
 
 		for p in gen:
 			for h in p.households:
 				if len(h.kids) > 0:
-					print_edge('h%d' % h.id, 'h%d_%d' % (h.id, int(len(h.kids)/2)), 'vertical', ['group=%d' % h.id])
-					i = 0
-					for c in h.kids:
-						opts = []
-						if i == len(h.kids)/2: opts.append('group=%d' % h.id)
-						print_edge('h%d_%d' % (h.id, i), c.id, 'vertical', opts)
-						i += 1
-						if i == len(h.kids)/2: i += 1
+					h_group = "grp_h%d" % h.id
+					l = len(h.kids)
+					if l % 2 == 0: l += 1
+					middle_idx = int(l/2)
+					
+					# Vertical line from household to sibling bar
+					print_edge('h%d' % h.id, 'h%d_%d' % (h.id, middle_idx), 'vertical', ['group="%s"' % h_group])
+					
+					kid_idx = 0
+					for i in range(l):
+						if i == middle_idx and len(h.kids) % 2 == 0:
+							# Skip the middle junction node if it's an extra one added for symmetry
+							continue
+						if kid_idx < len(h.kids):
+							c = h.kids[kid_idx]
+							c_group = h_group if i == middle_idx else "grp_h%d_c%d" % (h.id, i)
+							c.group = c_group
+							print_edge('h%d_%d' % (h.id, i), c.id, 'vertical', ['group="%s"' % c_group])
+							kid_idx += 1
 
 	def output_descending_tree(self, ancestor):
 		gen = [ancestor]
 		print('digraph {\n' + \
-		      '\tgraph [splines=polyline, nodesep=0.8, ranksep=0.6, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
+		      '\tgraph [splines=ortho, nodesep=1.0, ranksep=1.0, fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif"];\n' + \
 		      '\tnode [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", shape=box, height=0.6, width=1.6, fixedsize=true];\n' + \
 		      '\tedge [fontname = "Meiryo UI, MS Gothic, TakaoPGothic, IPAexGothic, sans-serif", dir=none];\n')
+		
+		# Initial generation needs groups too, but they'll be set in display_generation
+		# except for the first ancestor.
+		
+		# Re-run display logic in memory first to assign all groups?
+		# No, just output nodes at the end or use a buffer.
+		# Let's use a trick: only print people nodes after all generations are processed.
+		
+		import io
+		node_buffer = io.StringIO()
+		edge_buffer = io.StringIO()
+		
+		# Redirect stdout to capture buffers
+		old_stdout = sys.stdout
+		
+		current_gen = gen
+		while current_gen:
+			sys.stdout = edge_buffer
+			self.display_generation(current_gen)
+			current_gen = self.next_generation(current_gen)
+		
+		sys.stdout = node_buffer
 		for p in self.everybody.values():
 			print('\t' + p.graphviz() + ';')
-		print('')
-		while gen:
-			self.display_generation(gen)
-			gen = self.next_generation(gen)
+			
+		sys.stdout = old_stdout
+		print(node_buffer.getvalue())
+		print(edge_buffer.getvalue())
 		print(Family.layout_enforcer.get_report())
 		print('}')
 
